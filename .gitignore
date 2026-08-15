@@ -1,0 +1,14 @@
+# Logs y archivos locales
+*.log
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+build/
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.user
+*.tmp
