@@ -21,8 +21,17 @@ body {
   margin: 0;
   color: var(--text);
   background:
-    radial-gradient(55rem 35rem at 10% -15%, rgba(46, 131, 255, 0.18), transparent 70%),
-    radial-gradient(50rem 32rem at 95% 0, rgba(139, 92, 246, 0.16), transparent 70%), var(--bg);
+    radial-gradient(
+      55rem 35rem at 10% -15%,
+      rgba(46, 131, 255, 0.18),
+      transparent 70%
+    ),
+    radial-gradient(
+      50rem 32rem at 95% 0,
+      rgba(139, 92, 246, 0.16),
+      transparent 70%
+    ),
+    var(--bg);
   font:
     14px/1.55 Inter,
     system-ui,
@@ -200,7 +209,11 @@ h3 {
 .card {
   border: 1px solid var(--line);
   border-radius: 17px;
-  background: linear-gradient(160deg, rgba(21, 29, 52, 0.98), rgba(11, 17, 33, 0.98));
+  background: linear-gradient(
+    160deg,
+    rgba(21, 29, 52, 0.98),
+    rgba(11, 17, 33, 0.98)
+  );
 }
 .stat {
   padding: 19px;
@@ -509,6 +522,46 @@ td {
   max-height: 65vh;
   margin: 15px auto 0;
   border-radius: 12px;
+}
+.receipt-modal {
+  width: min(760px, 100%);
+  padding: 20px;
+}
+.modal-kicker {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.receipt-preview {
+  display: grid;
+  min-height: 180px;
+  margin: 18px 0;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(5, 9, 20, 0.82);
+}
+.receipt-image {
+  display: block;
+  width: 100%;
+  max-height: min(64vh, 600px) !important;
+  margin: 0 !important;
+  object-fit: contain;
+}
+.receipt-frame {
+  display: block;
+  width: 100%;
+  height: min(64vh, 600px);
+  border: 0;
+  background: #fff;
+}
+.receipt-modal .full {
+  width: 100%;
 }
 @media (max-width: 1050px) {
   .shell {

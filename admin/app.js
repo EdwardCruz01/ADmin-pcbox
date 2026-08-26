@@ -20,7 +20,13 @@ function escapeHtml(value = "") {
   return String(value).replace(
     /[&<>'"]/g,
     (character) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#039;", '"': "&quot;" })[character],
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#039;",
+        '"': "&quot;",
+      })[character],
   );
 }
 function money(value) {
@@ -39,10 +45,18 @@ function toast(message, type = "") {
   setTimeout(() => item.remove(), 4000);
 }
 function statusLabel(value) {
-  return value === "aprobado" ? "Aprobado" : value === "rechazado" ? "Rechazado" : "En revisión";
+  return value === "aprobado"
+    ? "Aprobado"
+    : value === "rechazado"
+      ? "Rechazado"
+      : "En revisión";
 }
 function statusClass(value) {
-  return value === "aprobado" ? "approved" : value === "rechazado" ? "rejected" : "pending";
+  return value === "aprobado"
+    ? "approved"
+    : value === "rechazado"
+      ? "rejected"
+      : "pending";
 }
 
 function renderLogin(message = "") {
@@ -51,10 +65,20 @@ function renderLogin(message = "") {
 }
 
 function renderDashboard() {
-  const raffle = state.raffles.find((item) => item.id === state.selectedRaffleId);
-  const approved = state.registrations.filter((item) => item.status === "aprobado").length;
-  const pending = state.registrations.filter((item) => item.status === "pendiente").length;
-  app.innerHTML = `<div class="shell"><aside class="sidebar"><a class="brand" href="#"><span class="brand-mark">PB</span><span>PC <span style="color:var(--primary)">BOX</span><small>Admin</small></span></a><p class="admin-label">Administración</p><nav class="side-nav"><button class="${state.section === "overview" ? "active" : ""}" data-section="overview">▦ Resumen</button><button class="${state.section === "registrations" ? "active" : ""}" data-section="registrations">✓ Inscripciones</button><button class="${state.section === "raffles" ? "active" : ""}" data-section="raffles">◇ Sorteos</button><button class="${state.section === "winners" ? "active" : ""}" data-section="winners">★ Ganadores</button></nav><div class="sidebar-footer">Sesión protegida con Supabase Auth.<br />Solo usuarios con rol admin.</div></aside><div class="main"><header class="topbar"><h1>${state.section === "overview" ? "Resumen" : state.section === "registrations" ? "Inscripciones" : state.section === "raffles" ? "Sorteos" : "Ganadores"}</h1><div class="user-actions"><span>${escapeHtml(state.user.email || "Administrador")}</span><button class="button secondary small" id="logout">Cerrar sesión</button></div></header><main class="content">${renderSection(raffle, approved, pending)}</main></div></div>`;
+  const raffle = state.raffles.find(
+    (item) => item.id === state.selectedRaffleId,
+  );
+  const approved = state.registrations.filter(
+    (item) => item.status === "aprobado",
+  ).length;
+  const pending = state.registrations.filter(
+    (item) => item.status === "pendiente",
+  ).length;
+  const ticketsAssigned = state.registrations.reduce(
+    (total, item) => total + (item.tickets?.length || 0),
+    0,
+  );
+  app.innerHTML = `<div class="shell"><aside class="sidebar"><a class="brand" href="#"><span class="brand-mark">PB</span><span>PC <span style="color:var(--primary)">BOX</span><small>Admin</small></span></a><p class="admin-label">Administración</p><nav class="side-nav"><button class="${state.section === "overview" ? "active" : ""}" data-section="overview">▦ Resumen</button><button class="${state.section === "registrations" ? "active" : ""}" data-section="registrations">✓ Inscripciones</button><button class="${state.section === "raffles" ? "active" : ""}" data-section="raffles">◇ Sorteos</button><button class="${state.section === "winners" ? "active" : ""}" data-section="winners">★ Ganadores</button></nav><div class="sidebar-footer">Sesión protegida con Supabase Auth.<br />Solo usuarios con rol admin.</div></aside><div class="main"><header class="topbar"><h1>${state.section === "overview" ? "Resumen" : state.section === "registrations" ? "Inscripciones" : state.section === "raffles" ? "Sorteos" : "Ganadores"}</h1><div class="user-actions"><span>${escapeHtml(state.user.email || "Administrador")}</span><button class="button secondary small" id="logout">Cerrar sesión</button></div></header><main class="content">${renderSection(raffle, approved, pending, ticketsAssigned)}</main></div></div>`;
   document.querySelectorAll("[data-section]").forEach((button) =>
     button.addEventListener("click", () => {
       state.section = button.dataset.section;
@@ -65,24 +89,32 @@ function renderDashboard() {
   bindSectionEvents();
 }
 
-function renderSection(raffle, approved, pending) {
+function renderSection(raffle, approved, pending, ticketsAssigned) {
   if (state.section === "registrations") return renderRegistrations(raffle);
   if (state.section === "raffles") return renderRaffles();
   if (state.section === "winners") return renderWinners(raffle);
-  return `<section class="cards"><article class="card stat"><p>Sorteos registrados</p><strong>${state.raffles.length}</strong></article><article class="card stat"><p>Inscripciones visibles</p><strong>${state.registrations.length}</strong></article><article class="card stat"><p>En revisión</p><strong style="color:var(--yellow)">${pending}</strong></article><article class="card stat"><p>Aprobadas</p><strong style="color:var(--green)">${approved}</strong></article></section><div class="toolbar"><div><h2>Actividad reciente</h2><p>${raffle ? `Mostrando: ${escapeHtml(raffle.title)}` : "Selecciona un sorteo para comenzar."}</p></div><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label></div>${renderRegistrationTable(raffle)}`;
+  return `<section class="cards"><article class="card stat"><p>Sorteos registrados</p><strong>${state.raffles.length}</strong></article><article class="card stat"><p>Participantes inscritos</p><strong>${approved}</strong></article><article class="card stat"><p>En revisión</p><strong style="color:var(--yellow)">${pending}</strong></article><article class="card stat"><p>Tickets asignados</p><strong style="color:var(--green)">${ticketsAssigned}</strong></article></section><div class="toolbar"><div><h2>Pendientes por aprobar</h2><p>${raffle ? `Revisa las solicitudes de ${escapeHtml(raffle.title)}.` : "Selecciona un sorteo para comenzar."}</p></div><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label></div>${renderRegistrationTable(raffle, "pending")}`;
 }
 
 function raffleOptions() {
   return `<option value="">Selecciona un sorteo</option>${state.raffles.map((raffle) => `<option value="${raffle.id}" ${raffle.id === state.selectedRaffleId ? "selected" : ""}>${escapeHtml(raffle.title)}</option>`).join("")}`;
 }
 function renderRegistrations(raffle) {
-  return `<div class="toolbar"><div><h2>Inscripciones</h2><p>Revisa comprobantes y asigna tickets desde el panel.</p></div><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label></div>${renderRegistrationTable(raffle)}`;
+  return `<div class="toolbar"><div><h2>Participantes inscritos</h2><p>Consulta únicamente las inscripciones aprobadas y sus tickets.</p></div><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label></div>${renderRegistrationTable(raffle, "approved")}`;
 }
-function renderRegistrationTable(raffle) {
-  if (!raffle) return `<div class="card empty">Selecciona un sorteo para ver sus inscritos.</div>`;
-  if (!state.registrations.length)
-    return `<div class="card empty">No hay inscripciones para este sorteo.</div>`;
-  return `<div class="table-wrap"><table><thead><tr><th>Participante</th><th>Contacto</th><th>Tickets</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody>${state.registrations.map((item) => `<tr><td><div class="name">${escapeHtml(item.full_name)}</div><div class="sub">DNI ${escapeHtml(item.dni)}</div></td><td><div>${escapeHtml(item.phone || "-")}</div><div class="sub">${escapeHtml(item.email || "Sin correo")}</div></td><td>${item.quantity}</td><td>${money(item.amount)}</td><td><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span>${item.tickets?.length ? `<div class="sub">#${item.tickets.join(", #")}</div>` : ""}</td><td>${date(item.created_at)}</td><td><div class="actions"><button class="button secondary small" data-action="receipt" data-path="${escapeHtml(item.receipt_url || "")}">Comprobante</button>${item.status === "pendiente" ? `<button class="button success small" data-action="approve" data-id="${item.id}">Aprobar</button><button class="button danger small" data-action="reject" data-id="${item.id}">Rechazar</button>` : ""}<button class="button danger small" data-action="delete" data-id="${item.id}">Eliminar</button></div></td></tr>`).join("")}</tbody></table></div>`;
+function renderRegistrationTable(raffle, view = "all") {
+  if (!raffle)
+    return `<div class="card empty">Selecciona un sorteo para ver sus inscritos.</div>`;
+  const visibleRegistrations = state.registrations.filter((item) =>
+    view === "pending"
+      ? item.status === "pendiente"
+      : view === "approved"
+        ? item.status === "aprobado"
+        : true,
+  );
+  if (!visibleRegistrations.length)
+    return `<div class="card empty">${view === "pending" ? "No hay solicitudes pendientes de aprobación." : view === "approved" ? "No hay participantes inscritos en este sorteo." : "No hay inscripciones para este sorteo."}</div>`;
+  return `<div class="table-wrap"><table><thead><tr><th>Participante</th><th>Contacto</th><th>Tickets</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody>${visibleRegistrations.map((item) => `<tr><td><div class="name">${escapeHtml(item.full_name)}</div><div class="sub">DNI ${escapeHtml(item.dni)}</div></td><td><div>${escapeHtml(item.phone || "-")}</div><div class="sub">${escapeHtml(item.email || "Sin correo")}</div></td><td>${item.quantity}</td><td>${money(item.amount)}</td><td><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span>${item.tickets?.length ? `<div class="sub">#${item.tickets.join(", #")}</div>` : ""}</td><td>${date(item.created_at)}</td><td><div class="actions"><button class="button secondary small" data-action="receipt" data-path="${escapeHtml(item.receipt_url || "")}">Ver comprobante</button>${view === "pending" ? `<button class="button success small" data-action="approve" data-id="${item.id}">Aprobar</button><button class="button danger small" data-action="reject" data-id="${item.id}">Rechazar</button>` : ""}<button class="button danger small" data-action="delete" data-id="${item.id}">Eliminar</button></div></td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function renderRaffles() {
@@ -103,7 +135,9 @@ function bindSectionEvents() {
     });
   document
     .querySelectorAll("[data-action]")
-    .forEach((button) => button.addEventListener("click", () => handleAction(button)));
+    .forEach((button) =>
+      button.addEventListener("click", () => handleAction(button)),
+    );
   const createForm = document.querySelector("#create-raffle-form");
   if (createForm) createForm.addEventListener("submit", createRaffle);
 }
@@ -115,7 +149,10 @@ async function handleAction(button) {
     if (action === "show-create") return showCreateModal();
     if (action === "approve") {
       if (!confirm("¿Aprobar esta inscripción y asignar sus tickets?")) return;
-      await rpc("aprobar_inscripcion", { p_registration_id: button.dataset.id, p_nota: null });
+      await rpc("aprobar_inscripcion", {
+        p_registration_id: button.dataset.id,
+        p_nota: null,
+      });
       toast("Inscripción aprobada y tickets asignados.", "success");
     }
     if (action === "reject") {
@@ -127,14 +164,26 @@ async function handleAction(button) {
       toast("Inscripción rechazada.", "success");
     }
     if (action === "delete") {
-      if (!confirm("Esta acción eliminará la inscripción y sus tickets. ¿Continuar?")) return;
-      await rpc("eliminar_inscripcion", { p_registration_id: button.dataset.id });
+      if (
+        !confirm(
+          "Esta acción eliminará la inscripción y sus tickets. ¿Continuar?",
+        )
+      )
+        return;
+      await rpc("eliminar_inscripcion", {
+        p_registration_id: button.dataset.id,
+      });
       toast("Inscripción eliminada.", "success");
     }
     if (action === "draw") {
       if (!confirm("¿Ejecutar el sorteo aleatorio para este premio?")) return;
-      const result = await rpc("sortear_ganador", { p_prize_id: button.dataset.id });
-      toast(`Ganador asignado: #${result?.[0]?.ticket_number || "-"}.`, "success");
+      const result = await rpc("sortear_ganador", {
+        p_prize_id: button.dataset.id,
+      });
+      toast(
+        `Ganador asignado: #${result?.[0]?.ticket_number || "-"}.`,
+        "success",
+      );
     }
     await loadRaffles();
     await loadRegistrations();
@@ -151,9 +200,27 @@ async function rpc(fn, params) {
 }
 async function viewReceipt(path) {
   if (!path) return toast("Esta inscripción no tiene comprobante.", "error");
-  const { data, error } = await supabase.storage.from("comprobantes").createSignedUrl(path, 600);
+  const { data, error } = await supabase.storage
+    .from("comprobantes")
+    .createSignedUrl(path, 600);
   if (error) throw error;
-  window.open(data.signedUrl, "_blank", "noopener");
+  const extension = String(path).split(".").pop()?.toLowerCase() || "";
+  const preview =
+    extension === "pdf"
+      ? `<iframe class="receipt-frame" src="${escapeHtml(data.signedUrl)}" title="Comprobante de pago"></iframe>`
+      : `<img class="receipt-image" src="${escapeHtml(data.signedUrl)}" alt="Comprobante de pago" />`;
+  const root = document.createElement("div");
+  root.className = "modal-backdrop receipt-backdrop";
+  root.id = "receipt-modal";
+  root.innerHTML = `<section class="modal receipt-modal" role="dialog" aria-modal="true" aria-labelledby="receipt-title"><button class="modal-close" data-close-receipt aria-label="Cerrar">×</button><span class="modal-kicker">Inscripción · Comprobante</span><h2 id="receipt-title">Comprobante de pago</h2><div class="receipt-preview">${preview}</div><button class="button secondary full" data-close-receipt>Cerrar</button></section>`;
+  document.body.append(root);
+  const close = () => root.remove();
+  root
+    .querySelectorAll("[data-close-receipt]")
+    .forEach((element) => element.addEventListener("click", close));
+  root.addEventListener("click", (event) => {
+    if (event.target === root) close();
+  });
 }
 
 function showCreateModal() {
@@ -162,8 +229,12 @@ function showCreateModal() {
   root.id = "create-modal";
   root.innerHTML = `<section class="modal"><button class="modal-close" data-close>×</button><h2>Crear nuevo sorteo</h2><form id="create-raffle-form" class="form-grid"><label class="form-label full">Título<input class="field" name="title" maxlength="140" required /></label><label class="form-label full">Descripción<textarea class="field" name="description" maxlength="500"></textarea></label><label class="form-label full">Detalles<textarea class="field" name="details" maxlength="1200"></textarea></label><label class="form-label">Precio del ticket<input class="field" name="ticket_price" type="number" min="0.01" step="0.01" value="5" required /></label><label class="form-label">Fecha del sorteo<input class="field" name="draw_date" type="datetime-local" /></label><label class="form-label full">Imagen URL (opcional)<input class="field" name="image_url" type="url" placeholder="https://..." /></label><label class="form-label full">Premios, uno por línea<textarea class="field" name="prizes" placeholder="Laptop gamer\nMonitor\nAccesorios"></textarea></label><button class="button full" type="submit">Guardar sorteo</button></form></section>`;
   document.body.append(root);
-  root.querySelector("[data-close]").addEventListener("click", () => root.remove());
-  root.querySelector("#create-raffle-form").addEventListener("submit", createRaffle);
+  root
+    .querySelector("[data-close]")
+    .addEventListener("click", () => root.remove());
+  root
+    .querySelector("#create-raffle-form")
+    .addEventListener("submit", createRaffle);
 }
 
 async function createRaffle(event) {
@@ -174,7 +245,8 @@ async function createRaffle(event) {
     .split("\n")
     .map((value) => value.trim())
     .filter(Boolean);
-  if (!title || !prizeNames.length) return toast("Agrega un título y al menos un premio.", "error");
+  if (!title || !prizeNames.length)
+    return toast("Agrega un título y al menos un premio.", "error");
   const button = event.currentTarget.querySelector("button");
   button.disabled = true;
   try {
@@ -257,7 +329,10 @@ async function loadRaffles() {
     ticket_price: Number(item.ticket_price),
     prizes: (item.prizes || []).sort((a, b) => a.position - b.position),
   }));
-  if (!state.selectedRaffleId || !state.raffles.some((item) => item.id === state.selectedRaffleId))
+  if (
+    !state.selectedRaffleId ||
+    !state.raffles.some((item) => item.id === state.selectedRaffleId)
+  )
     state.selectedRaffleId = state.raffles[0]?.id || "";
 }
 async function loadRegistrations() {
@@ -279,7 +354,8 @@ async function loadRegistrations() {
   }));
 }
 
-if (!supabase) renderLogin("No hay configuración de Supabase en admin/config.js.");
+if (!supabase)
+  renderLogin("No hay configuración de Supabase en admin/config.js.");
 else
   supabase.auth.getSession().then(async ({ data }) => {
     if (!data.session) return renderLogin();
