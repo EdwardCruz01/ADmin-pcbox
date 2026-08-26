@@ -13,6 +13,7 @@ const state = {
   raffles: [],
   selectedRaffleId: "",
   registrations: [],
+  registrationSearch: "",
   loading: false,
 };
 
@@ -100,7 +101,39 @@ function raffleOptions() {
   return `<option value="">Selecciona un sorteo</option>${state.raffles.map((raffle) => `<option value="${raffle.id}" ${raffle.id === state.selectedRaffleId ? "selected" : ""}>${escapeHtml(raffle.title)}</option>`).join("")}`;
 }
 function renderRegistrations(raffle) {
-  return `<div class="toolbar"><div><h2>Participantes inscritos</h2><p>Consulta únicamente las inscripciones aprobadas y sus tickets.</p></div><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label></div>${renderRegistrationTable(raffle, "approved")}`;
+  return `<div class="toolbar registrations-toolbar"><div><h2>Participantes inscritos</h2><p>Consulta únicamente las inscripciones aprobadas, un ticket por tarjeta.</p></div><div class="registration-filters"><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label><label class="filter registration-search">Buscar participante<input class="field" id="registration-search" type="search" value="${escapeHtml(state.registrationSearch)}" placeholder="Nombre, DNI o ticket" autocomplete="off" /></label></div></div><div id="registered-tickets-results">${renderApprovedTickets(raffle)}</div>`;
+}
+function renderApprovedTickets(raffle) {
+  if (!raffle)
+    return `<div class="card empty">Selecciona un sorteo para ver sus inscritos.</div>`;
+  const query = state.registrationSearch.trim().toLocaleLowerCase("es-PE");
+  const approvedRegistrations = state.registrations.filter(
+    (item) => item.status === "aprobado",
+  );
+  const tickets = approvedRegistrations
+    .flatMap((item) =>
+      (item.tickets || []).map((ticket) => ({
+        item,
+        ticket: String(ticket),
+      })),
+    )
+    .filter(({ item, ticket }) => {
+      if (!query) return true;
+      return [item.full_name, item.dni, item.phone, item.email, ticket]
+        .filter(Boolean)
+        .some((value) =>
+          String(value).toLocaleLowerCase("es-PE").includes(query),
+        );
+    })
+    .sort((a, b) => Number(a.ticket) - Number(b.ticket));
+  if (!tickets.length)
+    return `<div class="card empty">${query ? "No encontramos participantes o tickets con esa búsqueda." : "No hay participantes inscritos en este sorteo."}</div>`;
+  return `<div class="participant-ticket-grid">${tickets
+    .map(
+      ({ item, ticket }) =>
+        `<article class="participant-ticket-card"><div class="participant-ticket-heading"><div><span class="participant-ticket-label">Ticket asignado</span><strong class="participant-ticket-number">#${escapeHtml(ticket)}</strong></div><span class="status approved">Aprobado</span></div><div class="participant-ticket-info"><div><span>Participante</span><strong>${escapeHtml(item.full_name)}</strong></div><div><span>DNI</span><strong>${escapeHtml(item.dni)}</strong></div><div><span>Celular</span><strong>${escapeHtml(item.phone || "-")}</strong></div><div><span>Monto registrado</span><strong>${money(item.amount)}</strong></div></div><div class="participant-ticket-footer"><span>Registrado el ${date(item.created_at)}</span><div class="actions"><button class="button secondary small" data-action="receipt" data-path="${escapeHtml(item.receipt_url || "")}">Ver comprobante</button><button class="button danger small" data-action="delete" data-id="${item.id}">Eliminar inscripción</button></div></div></article>`,
+    )
+    .join("")}</div>`;
 }
 function renderRegistrationTable(raffle, view = "all") {
   if (!raffle)
@@ -130,16 +163,33 @@ function bindSectionEvents() {
   if (filter)
     filter.addEventListener("change", async (event) => {
       state.selectedRaffleId = event.target.value;
+      state.registrationSearch = "";
       await loadRegistrations();
       renderDashboard();
     });
-  document
+  bindActionButtons();
+  const search = document.querySelector("#registration-search");
+  if (search)
+    search.addEventListener("input", (event) => {
+      state.registrationSearch = event.target.value;
+      const raffle = state.raffles.find(
+        (item) => item.id === state.selectedRaffleId,
+      );
+      const results = document.querySelector("#registered-tickets-results");
+      if (!results) return;
+      results.innerHTML = renderApprovedTickets(raffle);
+      bindActionButtons(results);
+    });
+  const createForm = document.querySelector("#create-raffle-form");
+  if (createForm) createForm.addEventListener("submit", createRaffle);
+}
+
+function bindActionButtons(root = document) {
+  root
     .querySelectorAll("[data-action]")
     .forEach((button) =>
       button.addEventListener("click", () => handleAction(button)),
     );
-  const createForm = document.querySelector("#create-raffle-form");
-  if (createForm) createForm.addEventListener("submit", createRaffle);
 }
 
 async function handleAction(button) {
