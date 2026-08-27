@@ -144,16 +144,16 @@ function renderRegistrationTable(raffle, view = "all", search = "") {
   if (!raffle)
     return `<div class="card empty">Selecciona un sorteo para ver sus inscritos.</div>`;
   const query = String(search || "").replace(/\D/g, "").slice(0, 8);
-  const visibleRegistrations = state.registrations.filter((item) =>
-    view === "pending"
-      ? item.status === "pendiente"
-      : view === "approved"
-        ? item.status === "aprobado"
-        : true,
-  ).filter((item) => {
-    if (view !== "pending" || !query) return true;
-    return String(item.dni || "").includes(query);
-  });
+  const visibleRegistrations = state.registrations
+    .filter((item) => {
+      if (view === "pending") return item.status === "pendiente";
+      if (view === "approved") return item.status === "aprobado";
+      return true;
+    })
+    .filter((item) => {
+      if (view !== "pending" || !query) return true;
+      return String(item.dni || "").includes(query);
+    });
   if (!visibleRegistrations.length)
     return `<div class="card empty">${view === "pending" && query ? "No encontramos solicitudes pendientes con ese DNI." : view === "pending" ? "No hay solicitudes pendientes de aprobación." : view === "approved" ? "No hay participantes inscritos en este sorteo." : "No hay inscripciones para este sorteo."}</div>`;
   return `<div class="table-wrap"><table><thead><tr><th>Participante</th><th>Contacto</th><th>Tickets</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody>${visibleRegistrations.map((item) => `<tr><td><div class="name">${escapeHtml(item.full_name)}</div><div class="sub">DNI ${escapeHtml(item.dni)}</div></td><td><div>${escapeHtml(item.phone || "-")}</div><div class="sub">${escapeHtml(item.email || "Sin correo")}</div></td><td>${item.quantity}</td><td>${money(item.amount)}</td><td><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span>${item.tickets?.length ? `<div class="sub">#${item.tickets.join(", #")}</div>` : ""}</td><td>${date(item.created_at)}</td><td><div class="actions"><button class="button secondary small" data-action="receipt" data-path="${escapeHtml(item.receipt_url || "")}">Ver comprobante</button>${view === "pending" ? `<button class="button success small" data-action="approve" data-id="${item.id}">Aprobar</button><button class="button danger small" data-action="reject" data-id="${item.id}">Rechazar</button>` : ""}<button class="button danger small" data-action="delete" data-id="${item.id}">Eliminar</button></div></td></tr>`).join("")}</tbody></table></div>`;
