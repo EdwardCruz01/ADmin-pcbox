@@ -14,6 +14,7 @@ const state = {
   selectedRaffleId: "",
   registrations: [],
   registrationSearch: "",
+  pendingSearch: "",
   loading: false,
 };
 
@@ -94,7 +95,7 @@ function renderSection(raffle, approved, pending, ticketsAssigned) {
   if (state.section === "registrations") return renderRegistrations(raffle);
   if (state.section === "raffles") return renderRaffles();
   if (state.section === "winners") return renderWinners(raffle);
-  return `<section class="cards"><article class="card stat"><p>Sorteos registrados</p><strong>${state.raffles.length}</strong></article><article class="card stat"><p>Participantes inscritos</p><strong>${approved}</strong></article><article class="card stat"><p>En revisión</p><strong style="color:var(--yellow)">${pending}</strong></article><article class="card stat"><p>Tickets asignados</p><strong style="color:var(--green)">${ticketsAssigned}</strong></article></section><div class="toolbar"><div><h2>Pendientes por aprobar</h2><p>${raffle ? `Revisa las solicitudes de ${escapeHtml(raffle.title)}.` : "Selecciona un sorteo para comenzar."}</p></div><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label></div>${renderRegistrationTable(raffle, "pending")}`;
+  return `<section class="cards"><article class="card stat"><p>Sorteos registrados</p><strong>${state.raffles.length}</strong></article><article class="card stat"><p>Participantes inscritos</p><strong>${approved}</strong></article><article class="card stat"><p>En revisión</p><strong style="color:var(--yellow)">${pending}</strong></article><article class="card stat"><p>Tickets asignados</p><strong style="color:var(--green)">${ticketsAssigned}</strong></article></section><div class="toolbar"><div><h2>Pendientes por aprobar</h2><p>${raffle ? `Revisa las solicitudes de ${escapeHtml(raffle.title)}.` : "Selecciona un sorteo para comenzar."}</p></div><div class="registration-filters"><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label><label class="filter registration-search"><span>Buscar por DNI</span><input class="field" id="pending-search" type="search" inputmode="numeric" maxlength="8" value="${escapeHtml(state.pendingSearch)}" placeholder="DNI del participante" autocomplete="off" /></label></div></div><div id="pending-registrations-results">${renderRegistrationTable(raffle, "pending", state.pendingSearch)}</div>`;
 }
 
 function raffleOptions() {
@@ -125,7 +126,11 @@ function renderApprovedTickets(raffle) {
           String(value).toLocaleLowerCase("es-PE").includes(query),
         );
     })
-    .sort((a, b) => Number(a.ticket) - Number(b.ticket));
+    .sort((a, b) => {
+      const ticketA = Number.parseInt(a.ticket, 10);
+      const ticketB = Number.parseInt(b.ticket, 10);
+      return ticketA - ticketB || String(a.item.full_name).localeCompare(String(b.item.full_name), "es");
+    });
   if (!tickets.length)
     return `<div class="card empty">${query ? "No encontramos participantes o tickets con esa búsqueda." : "No hay participantes inscritos en este sorteo."}</div>`;
   return `<div class="participant-ticket-grid">${tickets
@@ -135,18 +140,22 @@ function renderApprovedTickets(raffle) {
     )
     .join("")}</div>`;
 }
-function renderRegistrationTable(raffle, view = "all") {
+function renderRegistrationTable(raffle, view = "all", search = "") {
   if (!raffle)
     return `<div class="card empty">Selecciona un sorteo para ver sus inscritos.</div>`;
+  const query = String(search || "").replace(/\D/g, "").slice(0, 8);
   const visibleRegistrations = state.registrations.filter((item) =>
     view === "pending"
       ? item.status === "pendiente"
       : view === "approved"
         ? item.status === "aprobado"
         : true,
+  ).filter((item) => {
+    if (view !== "pending" || !query) return true;
+    return String(item.dni || "").includes(query);
   );
   if (!visibleRegistrations.length)
-    return `<div class="card empty">${view === "pending" ? "No hay solicitudes pendientes de aprobación." : view === "approved" ? "No hay participantes inscritos en este sorteo." : "No hay inscripciones para este sorteo."}</div>`;
+    return `<div class="card empty">${view === "pending" && query ? "No encontramos solicitudes pendientes con ese DNI." : view === "pending" ? "No hay solicitudes pendientes de aprobación." : view === "approved" ? "No hay participantes inscritos en este sorteo." : "No hay inscripciones para este sorteo."}</div>`;
   return `<div class="table-wrap"><table><thead><tr><th>Participante</th><th>Contacto</th><th>Tickets</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody>${visibleRegistrations.map((item) => `<tr><td><div class="name">${escapeHtml(item.full_name)}</div><div class="sub">DNI ${escapeHtml(item.dni)}</div></td><td><div>${escapeHtml(item.phone || "-")}</div><div class="sub">${escapeHtml(item.email || "Sin correo")}</div></td><td>${item.quantity}</td><td>${money(item.amount)}</td><td><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span>${item.tickets?.length ? `<div class="sub">#${item.tickets.join(", #")}</div>` : ""}</td><td>${date(item.created_at)}</td><td><div class="actions"><button class="button secondary small" data-action="receipt" data-path="${escapeHtml(item.receipt_url || "")}">Ver comprobante</button>${view === "pending" ? `<button class="button success small" data-action="approve" data-id="${item.id}">Aprobar</button><button class="button danger small" data-action="reject" data-id="${item.id}">Rechazar</button>` : ""}<button class="button danger small" data-action="delete" data-id="${item.id}">Eliminar</button></div></td></tr>`).join("")}</tbody></table></div>`;
 }
 
@@ -164,10 +173,23 @@ function bindSectionEvents() {
     filter.addEventListener("change", async (event) => {
       state.selectedRaffleId = event.target.value;
       state.registrationSearch = "";
+      state.pendingSearch = "";
       await loadRegistrations();
       renderDashboard();
     });
   bindActionButtons();
+  const pendingSearch = document.querySelector("#pending-search");
+  if (pendingSearch)
+    pendingSearch.addEventListener("input", (event) => {
+      state.pendingSearch = event.target.value.replace(/\D/g, "").slice(0, 8);
+      event.target.value = state.pendingSearch;
+      const raffle = state.raffles.find(
+        (item) => item.id === state.selectedRaffleId,
+      );
+      const results = document.querySelector("#pending-registrations-results");
+      if (results) results.innerHTML = renderRegistrationTable(raffle, "pending", state.pendingSearch);
+      bindActionButtons(results || document);
+    });
   const search = document.querySelector("#registration-search");
   if (search)
     search.addEventListener("input", (event) => {
