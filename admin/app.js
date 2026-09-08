@@ -80,7 +80,7 @@ function renderDashboard() {
     (total, item) => total + (item.tickets?.length || 0),
     0,
   );
-  app.innerHTML = `<div class="shell"><aside class="sidebar"><a class="brand" href="#"><span class="brand-mark">PB</span><span>PC <span style="color:var(--primary)">BOX</span><small>Admin</small></span></a><p class="admin-label">Administración</p><nav class="side-nav"><button class="${state.section === "overview" ? "active" : ""}" data-section="overview">▦ Resumen</button><button class="${state.section === "registrations" ? "active" : ""}" data-section="registrations">✓ Inscripciones</button><button class="${state.section === "raffles" ? "active" : ""}" data-section="raffles">◇ Sorteos</button><button class="${state.section === "winners" ? "active" : ""}" data-section="winners">★ Ganadores</button></nav><div class="sidebar-footer">Sesión protegida con Supabase Auth.<br />Solo usuarios con rol admin.</div></aside><div class="main"><header class="topbar"><h1>${state.section === "overview" ? "Resumen" : state.section === "registrations" ? "Inscripciones" : state.section === "raffles" ? "Sorteos" : "Ganadores"}</h1><div class="user-actions"><span>${escapeHtml(state.user.email || "Administrador")}</span><button class="button secondary small" id="logout">Cerrar sesión</button></div></header><main class="content">${renderSection(raffle, approved, pending, ticketsAssigned)}</main></div></div>`;
+  app.innerHTML = `<div class="shell"><aside class="sidebar"><a class="brand" href="#"><span class="brand-mark">PB</span><span>PC <span style="color:var(--primary)">BOX</span><small>Admin</small></span></a><p class="admin-label">Administración</p><nav class="side-nav"><button class="${state.section === "overview" ? "active" : ""}" data-section="overview">▦ Resumen</button><button class="${state.section === "registrations" ? "active" : ""}" data-section="registrations">✓ Inscripciones</button><button type="button" disabled aria-disabled="true" title="Sección deshabilitada">◇ Sorteos</button><button class="${state.section === "winners" ? "active" : ""}" data-section="winners">★ Ganadores</button></nav><div class="sidebar-footer">Sesión protegida con Supabase Auth.<br />Solo usuarios con rol admin.</div></aside><div class="main"><header class="topbar"><h1>${state.section === "overview" ? "Resumen" : state.section === "registrations" ? "Inscripciones" : "Ganadores"}</h1><div class="user-actions"><span>${escapeHtml(state.user.email || "Administrador")}</span><button class="button secondary small" id="logout">Cerrar sesión</button></div></header><main class="content">${renderSection(raffle, approved, pending, ticketsAssigned)}</main></div></div>`;
   document.querySelectorAll("[data-section]").forEach((button) =>
     button.addEventListener("click", () => {
       state.section = button.dataset.section;
@@ -93,7 +93,6 @@ function renderDashboard() {
 
 function renderSection(raffle, approved, pending, ticketsAssigned) {
   if (state.section === "registrations") return renderRegistrations(raffle);
-  if (state.section === "raffles") return renderRaffles();
   if (state.section === "winners") return renderWinners(raffle);
   return `<section class="cards"><article class="card stat"><p>Sorteos registrados</p><strong>${state.raffles.length}</strong></article><article class="card stat"><p>Participantes inscritos</p><strong>${approved}</strong></article><article class="card stat"><p>En revisión</p><strong style="color:var(--yellow)">${pending}</strong></article><article class="card stat"><p>Tickets asignados</p><strong style="color:var(--green)">${ticketsAssigned}</strong></article></section><div class="toolbar"><div><h2>Pendientes por aprobar</h2><p>${raffle ? `Revisa las solicitudes de ${escapeHtml(raffle.title)}.` : "Selecciona un sorteo para comenzar."}</p></div><div class="registration-filters"><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label><label class="filter registration-search"><span>Buscar por DNI</span><input class="field" id="pending-search" type="search" inputmode="numeric" maxlength="8" value="${escapeHtml(state.pendingSearch)}" placeholder="DNI del participante" autocomplete="off" /></label></div></div><div id="pending-registrations-results">${renderRegistrationTable(raffle, "pending", state.pendingSearch)}</div>`;
 }
@@ -129,7 +128,10 @@ function renderApprovedTickets(raffle) {
     .sort((a, b) => {
       const ticketA = Number.parseInt(a.ticket, 10);
       const ticketB = Number.parseInt(b.ticket, 10);
-      return ticketA - ticketB || String(a.item.full_name).localeCompare(String(b.item.full_name), "es");
+      return (
+        ticketA - ticketB ||
+        String(a.item.full_name).localeCompare(String(b.item.full_name), "es")
+      );
     });
   if (!tickets.length)
     return `<div class="card empty">${query ? "No encontramos participantes o tickets con esa búsqueda." : "No hay participantes inscritos en este sorteo."}</div>`;
@@ -143,7 +145,9 @@ function renderApprovedTickets(raffle) {
 function renderRegistrationTable(raffle, view = "all", search = "") {
   if (!raffle)
     return `<div class="card empty">Selecciona un sorteo para ver sus inscritos.</div>`;
-  const query = String(search || "").replace(/\D/g, "").slice(0, 8);
+  const query = String(search || "")
+    .replace(/\D/g, "")
+    .slice(0, 8);
   const visibleRegistrations = state.registrations
     .filter((item) => {
       if (view === "pending") return item.status === "pendiente";
@@ -164,7 +168,18 @@ function renderRaffles() {
 }
 
 function renderWinners(raffle) {
-  return `<div class="toolbar"><div><h2>Designar ganadores</h2><p>Selecciona un sorteo y ejecuta el sorteo de cada premio.</p></div><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label></div>${raffle ? `<div class="draw-list">${(raffle.prizes || []).map((prize) => `<div class="draw-item"><div><strong>${escapeHtml(prize.name)}</strong><br /><span>${prize.winner_ticket_number ? `Ganador: #${prize.winner_ticket_number} · ${escapeHtml(prize.winner_name || "")}` : "Pendiente de sorteo"}</span></div>${prize.winner_ticket_number ? `<span class="status approved">Publicado</span>` : `<button class="button small" data-action="draw" data-id="${prize.id}">Sortear premio</button>`}</div>`).join("")}</div>` : `<div class="card empty">Selecciona un sorteo para ver sus premios.</div>`}`;
+  return `<div class="toolbar"><div><h2>Designar ganadores</h2><p>Presiona sortear una vez para elegir el ganador de cada premio.</p></div><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label></div>${
+    raffle
+      ? `<div class="draw-list">${(raffle.prizes || [])
+          .map((prize) => {
+            const hasWinner =
+              prize.winner_ticket_number !== null &&
+              prize.winner_ticket_number !== undefined;
+            return `<div class="draw-item"><div><strong>${escapeHtml(prize.name)}</strong>${hasWinner ? `<div class="draw-attempts"><span class="draw-attempt ganador">Ganador: #${prize.winner_ticket_number} · ${escapeHtml(prize.winner_name || "Nombre no disponible")}</span></div>` : `<span class="draw-attempts-empty">Pendiente de sorteo</span>`}</div>${hasWinner ? `<span class="status approved">Publicado</span>` : `<button class="button small" data-action="draw" data-id="${prize.id}">Sortear ganador</button>`}</div>`;
+          })
+          .join("")}</div>`
+      : `<div class="card empty">Selecciona un sorteo para ver sus premios.</div>`
+  }`;
 }
 
 function bindSectionEvents() {
@@ -187,7 +202,12 @@ function bindSectionEvents() {
         (item) => item.id === state.selectedRaffleId,
       );
       const results = document.querySelector("#pending-registrations-results");
-      if (results) results.innerHTML = renderRegistrationTable(raffle, "pending", state.pendingSearch);
+      if (results)
+        results.innerHTML = renderRegistrationTable(
+          raffle,
+          "pending",
+          state.pendingSearch,
+        );
       bindActionButtons(results || document);
     });
   const search = document.querySelector("#registration-search");
@@ -248,12 +268,18 @@ async function handleAction(button) {
       toast("Inscripción eliminada.", "success");
     }
     if (action === "draw") {
-      if (!confirm("¿Ejecutar el sorteo aleatorio para este premio?")) return;
+      if (
+        !confirm(
+          "¿Sortear el ganador de este premio? El ticket obtenido no podrá volver a participar en este sorteo.",
+        )
+      )
+        return;
       const result = await rpc("sortear_ganador", {
         p_prize_id: button.dataset.id,
       });
+      const selection = result?.[0];
       toast(
-        `Ganador asignado: #${result?.[0]?.ticket_number || "-"}.`,
+        `Ganador asignado: #${selection?.ticket_number || "-"} · ${selection?.winner_name || "Nombre no disponible"}.`,
         "success",
       );
     }
