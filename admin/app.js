@@ -94,14 +94,14 @@ function renderDashboard() {
 function renderSection(raffle, approved, pending, ticketsAssigned) {
   if (state.section === "registrations") return renderRegistrations(raffle);
   if (state.section === "winners") return renderWinners(raffle);
-  return `<section class="cards"><article class="card stat"><p>Sorteos registrados</p><strong>${state.raffles.length}</strong></article><article class="card stat"><p>Participantes inscritos</p><strong>${approved}</strong></article><article class="card stat"><p>En revisión</p><strong style="color:var(--yellow)">${pending}</strong></article><article class="card stat"><p>Tickets asignados</p><strong style="color:var(--green)">${ticketsAssigned}</strong></article></section><div class="toolbar"><div><h2>Pendientes por aprobar</h2><p>${raffle ? `Revisa las solicitudes de ${escapeHtml(raffle.title)}.` : "Selecciona un sorteo para comenzar."}</p></div><div class="registration-filters"><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label><label class="filter registration-search"><span>Buscar por DNI</span><input class="field" id="pending-search" type="search" inputmode="numeric" maxlength="8" value="${escapeHtml(state.pendingSearch)}" placeholder="DNI del participante" autocomplete="off" /></label></div></div><div id="pending-registrations-results">${renderRegistrationTable(raffle, "pending", state.pendingSearch)}</div>`;
+  return `<section class="cards"><article class="card stat"><p>Sorteos registrados</p><strong>${state.raffles.length}</strong></article><article class="card stat"><p>Participantes inscritos</p><strong>${approved}</strong></article><article class="card stat"><p>En revisión</p><strong style="color:var(--yellow)">${pending}</strong></article><article class="card stat"><p>Tickets asignados</p><strong style="color:var(--green)">${ticketsAssigned}</strong></article></section><div class="toolbar"><div><h2>Pendientes por aprobar</h2><p>${raffle ? `Revisa las solicitudes de ${escapeHtml(raffle.title)}.` : "Selecciona un sorteo para comenzar."}</p></div><div class="registration-filters"><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label><label class="filter registration-search"><span>Buscar por DNI o CE</span><input class="field" id="pending-search" type="search" inputmode="numeric" maxlength="12" value="${escapeHtml(state.pendingSearch)}" placeholder="DNI o CE del participante" autocomplete="off" /></label></div></div><div id="pending-registrations-results">${renderRegistrationTable(raffle, "pending", state.pendingSearch)}</div>`;
 }
 
 function raffleOptions() {
   return `<option value="">Selecciona un sorteo</option>${state.raffles.map((raffle) => `<option value="${raffle.id}" ${raffle.id === state.selectedRaffleId ? "selected" : ""}>${escapeHtml(raffle.title)}</option>`).join("")}`;
 }
 function renderRegistrations(raffle) {
-  return `<div class="toolbar registrations-toolbar"><div><h2>Participantes inscritos</h2><p>Consulta únicamente las inscripciones aprobadas, un ticket por tarjeta.</p></div><div class="registration-filters"><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label><label class="filter registration-search">Buscar participante<input class="field" id="registration-search" type="search" value="${escapeHtml(state.registrationSearch)}" placeholder="Nombre, DNI o ticket" autocomplete="off" /></label></div></div><div id="registered-tickets-results">${renderApprovedTickets(raffle)}</div>`;
+  return `<div class="toolbar registrations-toolbar"><div><h2>Participantes inscritos</h2><p>Consulta únicamente las inscripciones aprobadas, un ticket por tarjeta.</p></div><div class="registration-filters"><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label><label class="filter registration-search">Buscar participante<input class="field" id="registration-search" type="search" value="${escapeHtml(state.registrationSearch)}" placeholder="Nombre, DNI, CE o ticket" autocomplete="off" /></label></div></div><div id="registered-tickets-results">${renderApprovedTickets(raffle)}</div>`;
 }
 function renderApprovedTickets(raffle) {
   if (!raffle)
@@ -138,7 +138,7 @@ function renderApprovedTickets(raffle) {
   return `<div class="participant-ticket-grid">${tickets
     .map(
       ({ item, ticket }) =>
-        `<article class="participant-ticket-card"><div class="participant-ticket-heading"><div><span class="participant-ticket-label">Ticket asignado</span><strong class="participant-ticket-number">#${escapeHtml(ticket)}</strong></div><span class="status approved">Aprobado</span></div><div class="participant-ticket-info"><div><span>Participante</span><strong>${escapeHtml(item.full_name)}</strong></div><div><span>DNI</span><strong>${escapeHtml(item.dni)}</strong></div><div><span>Celular</span><strong>${escapeHtml(item.phone || "-")}</strong></div><div><span>Monto registrado</span><strong>${money(item.amount)}</strong></div></div><div class="participant-ticket-footer"><span>Registrado el ${date(item.created_at)}</span><div class="actions"><button class="button secondary small" data-action="receipt" data-path="${escapeHtml(item.receipt_url || "")}">Ver comprobante</button><button class="button danger small" data-action="delete" data-id="${item.id}">Eliminar inscripción</button></div></div></article>`,
+        `<article class="participant-ticket-card"><div class="participant-ticket-heading"><div><span class="participant-ticket-label">Ticket asignado</span><strong class="participant-ticket-number">#${escapeHtml(ticket)}</strong></div><span class="status approved">Aprobado</span></div><div class="participant-ticket-info"><div><span>Participante</span><strong>${escapeHtml(item.full_name)}</strong></div><div><span>${item.document_type === "CE" ? "Carnet de extranjería" : "DNI"}</span><strong>${escapeHtml(item.dni)}</strong></div><div><span>Celular</span><strong>${escapeHtml(item.phone || "-")}</strong></div><div><span>Monto registrado</span><strong>${money(item.amount)}</strong></div></div><div class="participant-ticket-footer"><span>Registrado el ${date(item.created_at)}</span><div class="actions"><button class="button secondary small" data-action="receipt" data-path="${escapeHtml(item.receipt_url || "")}">Ver comprobante</button><button class="button danger small" data-action="delete" data-id="${item.id}">Eliminar inscripción</button></div></div></article>`,
     )
     .join("")}</div>`;
 }
@@ -147,7 +147,7 @@ function renderRegistrationTable(raffle, view = "all", search = "") {
     return `<div class="card empty">Selecciona un sorteo para ver sus inscritos.</div>`;
   const query = String(search || "")
     .replace(/\D/g, "")
-    .slice(0, 8);
+    .slice(0, 12);
   const visibleRegistrations = state.registrations
     .filter((item) => {
       if (view === "pending") return item.status === "pendiente";
@@ -159,8 +159,8 @@ function renderRegistrationTable(raffle, view = "all", search = "") {
       return String(item.dni || "").includes(query);
     });
   if (!visibleRegistrations.length)
-    return `<div class="card empty">${view === "pending" && query ? "No encontramos solicitudes pendientes con ese DNI." : view === "pending" ? "No hay solicitudes pendientes de aprobación." : view === "approved" ? "No hay participantes inscritos en este sorteo." : "No hay inscripciones para este sorteo."}</div>`;
-  return `<div class="table-wrap"><table><thead><tr><th>Participante</th><th>Contacto</th><th>Tickets</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody>${visibleRegistrations.map((item) => `<tr><td><div class="name">${escapeHtml(item.full_name)}</div><div class="sub">DNI ${escapeHtml(item.dni)}</div></td><td><div>${escapeHtml(item.phone || "-")}</div><div class="sub">${escapeHtml(item.email || "Sin correo")}</div></td><td>${item.quantity}</td><td>${money(item.amount)}</td><td><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span>${item.tickets?.length ? `<div class="sub">#${item.tickets.join(", #")}</div>` : ""}</td><td>${date(item.created_at)}</td><td><div class="actions"><button class="button secondary small" data-action="receipt" data-path="${escapeHtml(item.receipt_url || "")}">Ver comprobante</button>${view === "pending" ? `<button class="button success small" data-action="approve" data-id="${item.id}">Aprobar</button><button class="button danger small" data-action="reject" data-id="${item.id}">Rechazar</button>` : ""}<button class="button danger small" data-action="delete" data-id="${item.id}">Eliminar</button></div></td></tr>`).join("")}</tbody></table></div>`;
+    return `<div class="card empty">${view === "pending" && query ? "No encontramos solicitudes pendientes con ese documento." : view === "pending" ? "No hay solicitudes pendientes de aprobación." : view === "approved" ? "No hay participantes inscritos en este sorteo." : "No hay inscripciones para este sorteo."}</div>`;
+  return `<div class="table-wrap"><table><thead><tr><th>Participante</th><th>Contacto</th><th>Tickets</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody>${visibleRegistrations.map((item) => `<tr><td><div class="name">${escapeHtml(item.full_name)}</div><div class="sub">${item.document_type === "CE" ? "CE" : "DNI"} ${escapeHtml(item.dni)}</div></td><td><div>${escapeHtml(item.phone || "-")}</div><div class="sub">${escapeHtml(item.email || "Sin correo")}</div></td><td>${item.quantity}</td><td>${money(item.amount)}</td><td><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span>${item.tickets?.length ? `<div class="sub">#${item.tickets.join(", #")}</div>` : ""}</td><td>${date(item.created_at)}</td><td><div class="actions"><button class="button secondary small" data-action="receipt" data-path="${escapeHtml(item.receipt_url || "")}">Ver comprobante</button>${view === "pending" ? `<button class="button success small" data-action="approve" data-id="${item.id}">Aprobar</button><button class="button danger small" data-action="reject" data-id="${item.id}">Rechazar</button>` : ""}<button class="button danger small" data-action="delete" data-id="${item.id}">Eliminar</button></div></td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function renderRaffles() {
@@ -196,7 +196,7 @@ function bindSectionEvents() {
   const pendingSearch = document.querySelector("#pending-search");
   if (pendingSearch)
     pendingSearch.addEventListener("input", (event) => {
-      state.pendingSearch = event.target.value.replace(/\D/g, "").slice(0, 8);
+      state.pendingSearch = event.target.value.replace(/\D/g, "").slice(0, 12);
       event.target.value = state.pendingSearch;
       const raffle = state.raffles.find(
         (item) => item.id === state.selectedRaffleId,
@@ -441,7 +441,7 @@ async function loadRegistrations() {
   const { data, error } = await supabase
     .from("registrations")
     .select(
-      "id,raffle_id,dni,full_name,phone,email,quantity,amount,status,receipt_url,created_at,tickets(number)",
+      "id,raffle_id,dni,document_type,full_name,phone,email,quantity,amount,status,receipt_url,created_at,tickets(number)",
     )
     .eq("raffle_id", state.selectedRaffleId)
     .order("created_at", { ascending: false });
