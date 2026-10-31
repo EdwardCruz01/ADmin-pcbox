@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { downloadTicketsPdf } from "./ticket-pdf.js";
 
 const config = window.PCBOX_ADMIN_CONFIG || {};
 const supabase =
@@ -101,16 +102,14 @@ function raffleOptions() {
   return `<option value="">Selecciona un sorteo</option>${state.raffles.map((raffle) => `<option value="${raffle.id}" ${raffle.id === state.selectedRaffleId ? "selected" : ""}>${escapeHtml(raffle.title)}</option>`).join("")}`;
 }
 function renderRegistrations(raffle) {
-  return `<div class="toolbar registrations-toolbar"><div><h2>Participantes inscritos</h2><p>Consulta únicamente las inscripciones aprobadas, un ticket por tarjeta.</p></div><div class="registration-filters"><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label><label class="filter registration-search">Buscar participante<input class="field" id="registration-search" type="search" value="${escapeHtml(state.registrationSearch)}" placeholder="Nombre, DNI, CE o ticket" autocomplete="off" /></label></div></div><div id="registered-tickets-results">${renderApprovedTickets(raffle)}</div>`;
+  return `<div class="toolbar registrations-toolbar"><div><h2>Participantes inscritos</h2><p>Consulta únicamente las inscripciones aprobadas, un ticket por tarjeta.</p></div><div class="registration-filters"><label class="filter">Sorteo<select class="field" id="raffle-filter">${raffleOptions()}</select></label><label class="filter registration-search">Buscar participante<input class="field" id="registration-search" type="search" value="${escapeHtml(state.registrationSearch)}" placeholder="Nombre, DNI, CE o ticket" autocomplete="off" /></label><button class="button download-tickets-button" type="button" data-action="download-tickets" ${!raffle || !getApprovedTickets().length ? "disabled" : ""}>Descargar tickets PDF</button></div></div><div id="registered-tickets-results">${renderApprovedTickets(raffle)}</div>`;
 }
-function renderApprovedTickets(raffle) {
-  if (!raffle)
-    return `<div class="card empty">Selecciona un sorteo para ver sus inscritos.</div>`;
+function getApprovedTickets() {
   const query = state.registrationSearch.trim().toLocaleLowerCase("es-PE");
   const approvedRegistrations = state.registrations.filter(
     (item) => item.status === "aprobado",
   );
-  const tickets = approvedRegistrations
+  return approvedRegistrations
     .flatMap((item) =>
       (item.tickets || []).map((ticket) => ({
         item,
@@ -133,6 +132,12 @@ function renderApprovedTickets(raffle) {
         String(a.item.full_name).localeCompare(String(b.item.full_name), "es")
       );
     });
+}
+function renderApprovedTickets(raffle) {
+  if (!raffle)
+    return `<div class="card empty">Selecciona un sorteo para ver sus inscritos.</div>`;
+  const query = state.registrationSearch.trim();
+  const tickets = getApprovedTickets();
   if (!tickets.length)
     return `<div class="card empty">${query ? "No encontramos participantes o tickets con esa búsqueda." : "No hay participantes inscritos en este sorteo."}</div>`;
   return `<div class="participant-ticket-grid">${tickets
@@ -220,6 +225,8 @@ function bindSectionEvents() {
       const results = document.querySelector("#registered-tickets-results");
       if (!results) return;
       results.innerHTML = renderApprovedTickets(raffle);
+      const downloadButton = document.querySelector('[data-action="download-tickets"]');
+      if (downloadButton) downloadButton.disabled = !raffle || !getApprovedTickets().length;
       bindActionButtons(results);
     });
   const createForm = document.querySelector("#create-raffle-form");
@@ -237,6 +244,19 @@ function bindActionButtons(root = document) {
 async function handleAction(button) {
   const action = button.dataset.action;
   try {
+    if (action === "download-tickets") {
+      const raffle = state.raffles.find((item) => item.id === state.selectedRaffleId);
+      const tickets = getApprovedTickets();
+      button.disabled = true;
+      button.textContent = "Generando PDF…";
+      try {
+        await downloadTicketsPdf(raffle, tickets);
+      } finally {
+        button.textContent = "Descargar tickets PDF";
+        button.disabled = !raffle || !getApprovedTickets().length;
+      }
+      return;
+    }
     if (action === "receipt") return viewReceipt(button.dataset.path);
     if (action === "show-create") return showCreateModal();
     if (action === "approve") {

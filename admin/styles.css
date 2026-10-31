@@ -667,6 +667,12 @@ td {
 .registration-search {
   min-width: 280px;
 }
+.registrations-toolbar .registration-filters {
+  flex-wrap: wrap;
+}
+.download-tickets-button {
+  white-space: nowrap;
+}
 .participant-ticket-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
@@ -771,6 +777,9 @@ td {
   }
   .registration-search {
     min-width: 0;
+  }
+  .download-tickets-button {
+    width: 100%;
   }
   .participant-ticket-grid {
     grid-template-columns: 1fr;
